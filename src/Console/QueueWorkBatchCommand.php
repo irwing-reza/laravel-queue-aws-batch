@@ -19,6 +19,7 @@ use Illuminate\Queue\Console\WorkCommand;
 use Illuminate\Queue\QueueManager;
 use Illuminate\Queue\Worker;
 use Illuminate\Queue\WorkerOptions;
+use Illuminate\Support\Facades\Log;
 use LukeWaite\LaravelQueueAwsBatch\Exceptions\JobNotFoundException;
 use LukeWaite\LaravelQueueAwsBatch\Exceptions\UnsupportedException;
 use LukeWaite\LaravelQueueAwsBatch\Queues\BatchQueue;
@@ -33,9 +34,14 @@ class QueueWorkBatchCommand extends WorkCommand
     protected $signature = 'queue:work-batch
                             {job_id : The job id in the database}
                             {connection? : The name of the queue connection to work}
+                            {--name=default : The name of the worker [default: "default"]}
                             {--memory=128 : The memory limit in megabytes}
                             {--timeout=60 : The number of seconds a child process can run}
-                            {--tries=0 : Number of times to attempt a job before logging it failed}';
+                            {--tries=0 : Number of times to attempt a job before logging it failed}
+                            {--force : Force the worker to run even in maintenance mode}
+                            {--queue= : The names of the queues to work}
+                            {--once : Only process the next job on the queue}
+                            {--stop-when-empty : Stop when the queue is empty}';
 
 
     protected $manager;
@@ -48,7 +54,7 @@ class QueueWorkBatchCommand extends WorkCommand
         $this->exceptions = $exceptions;
     }
 
-    public function fire()
+    public function handle()
     {
         $this->listenForEvents();
 
@@ -68,6 +74,10 @@ class QueueWorkBatchCommand extends WorkCommand
 
         /** @var BatchQueue $connection */
         $connection = $this->manager->connection($connectionName);
+
+        Log::debug("Connection Instance of", [
+            'connection' => get_class($connection)
+        ]);
 
         if (!$connection instanceof BatchQueue) {
             throw new UnsupportedException('queue:work-batch can only be run on batch queues');
@@ -98,12 +108,17 @@ class QueueWorkBatchCommand extends WorkCommand
     protected function gatherWorkerOptions()
     {
         return new WorkerOptions(
-            0,
+            'default', // name
+            0, //backoff delay
             $this->option('memory'),
             $this->option('timeout'),
             0,
             $this->option('tries'),
-            false
+            false,
+            $this->option('stop-when-empty'),
         );
+
+        //$name = 'default', $backoff = 0, $memory = 128, $timeout = 60, $sleep = 3, $maxTries = 1,
+        //$force = false, $stopWhenEmpty = false, $maxJobs = 0, $maxTime = 0, $rest = 0
     }
 }

@@ -5,3 +5,5 @@ composer.lock
 .phpstorm.meta.php
 tests/reports
 .phpunit.result.cache
+.DS_Store
+.idea
